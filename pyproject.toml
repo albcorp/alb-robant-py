@@ -19,6 +19,7 @@ Whoosh = "^2.7.4"
 
 [tool.poetry.dev-dependencies]
 black = "^20.8b1"
+Sphinx = "^3.5.3"
 
 [tool.poetry.scripts]
 robant = 'robant.console:run'
