@@ -7,3 +7,7 @@
 #
 # Ignore package files
 /dist/*
+
+#
+# Ignore documentation output
+/docs/build/*
