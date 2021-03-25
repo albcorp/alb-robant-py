@@ -6,7 +6,7 @@ include = '\.py$'
 [tool.poetry]
 name = "robant"
 version = "0.0.1"
-description = "Operate on reStructuredText project notes"
+description = "Maintain project notes and participate in external work flows"
 authors = ["Andrew Burrow <albcorp@gmail.com>"]
 license = "GPL-3.0-only"
 
