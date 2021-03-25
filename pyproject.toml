@@ -1,3 +1,8 @@
+[tool.black]
+line-length = 92
+target-version = ['py38']
+include = '\.py$'
+
 [tool.poetry]
 name = "robant"
 version = "0.0.1"
