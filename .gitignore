@@ -1,0 +1,9 @@
+#
+# ~/.gitignore
+#
+#   - Repository specific list of patterns that git(1) should ignore
+#
+
+#
+# Ignore package files
+/dist/*
