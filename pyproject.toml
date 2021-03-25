@@ -8,7 +8,7 @@ name = "robant"
 version = "0.0.1"
 description = "Operate on reStructuredText project notes"
 authors = ["Andrew Burrow <albcorp@gmail.com>"]
-license = "GPL-3"
+license = "GPL-3.0-only"
 
 [tool.poetry.dependencies]
 python = "^3.9"
