@@ -1,27 +1,39 @@
 #! /usr/bin/python
 
-"""Demonstrate the packaging of a script
+"""Validate project metadata and folders against schema and self-consistency constraints
 
 :Author: Andrew Burrow
 :Contact: albcorp@gmail.com
 :Copyright: 2021 Andrew Burrow
 
-This code is a simple example of the layout and documentation of python
-script
+Read project metadata files and folder structure, and check that
+metadata conforms to the project plans schema and satisifies simple
+self-consistency constraints
 
 """
 
 __docformat__ = "restructuredtext"
 
 
-import argparse
+# Standard library imports
+
+from argparse import ArgumentParser
+from pkgutil import get_data
 
 
-def run():
+# Filenames of JSON schema
 
-    parser = argparse.ArgumentParser(
+METADATA_SCHEMA_FNAME = "schema/metadata.json"
+
+
+def run_validation():
+
+    parser = ArgumentParser(
         prog="robant",
-        description="Demonstrate a robant script",
+        description=(
+            "Validate project metadata and folders against schema and "
+            "self-consistency constraints"
+        ),
         epilog=(
             "robant Copyright (C) 2021 Andrew Burrow. "
             "This program comes with ABSOLUTELY NO WARRANTY. "
@@ -32,29 +44,28 @@ def run():
     parser.add_argument(
         "-v",
         "--verbose",
-        action="store_const",
-        const=True,
-        default=False,
-        dest="verbose",
+        action="store_true",
         help="Verbose output",
     )
     parser.add_argument(
-        "-d",
-        "--dry-run",
-        action="store_const",
-        const=True,
-        default=False,
-        dest="dry_run",
-        help="Make no changes",
+        "-p",
+        "--project",
+        action="store",
+        default=".",
+        help="Filename of project to validate",
     )
 
     args = parser.parse_args()
 
+    # Report command line arguments
     if args.verbose:
         print("Verbose output is selected")
-    if args.dry_run:
-        print("Dry run is selected")
-    print("Finished")
+    if args.project != ".":
+        print(f"Project filename is {args.project}")
+
+    # Read metadata schema as text
+    text = get_data(__name__, METADATA_SCHEMA_FNAME).decode()
+    print("schema:\n" + text)
 
 
 # Local Variables:
