@@ -15,10 +15,12 @@ self-consistency constraints
 __docformat__ = "restructuredtext"
 
 
-# Standard library imports
+import argparse
+import json
+import pkgutil
 
-from argparse import ArgumentParser
-from pkgutil import get_data
+import icontract
+import yaml
 
 
 # Filenames of JSON schema
@@ -27,8 +29,8 @@ METADATA_SCHEMA_FNAME = "schema/metadata.json"
 
 
 def run_validation():
-
-    parser = ArgumentParser(
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(
         prog="robant",
         description=(
             "Validate project metadata and folders against schema and "
@@ -54,7 +56,6 @@ def run_validation():
         default=".",
         help="Filename of project to validate",
     )
-
     args = parser.parse_args()
 
     # Report command line arguments
@@ -64,8 +65,8 @@ def run_validation():
         print(f"Project filename is {args.project}")
 
     # Read metadata schema as text
-    text = get_data(__name__, METADATA_SCHEMA_FNAME).decode()
-    print("schema:\n" + text)
+    metadata_schema = json.loads(pkgutil.get_data(__name__, METADATA_SCHEMA_FNAME))
+    print(f"schema:\n{metadata_schema}")
 
 
 # Local Variables:
