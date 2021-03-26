@@ -1,0 +1,79 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "definitions": {
+        "uuid": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "slug": {
+            "type": "string",
+            "pattern": "^[a-z][0-9a-z]*(-[0-9a-z]+)*$"
+        },
+        "todo-state": {
+            "type": "string",
+            "pattern": "ROOT|LOOK|NOTE|HOLD|WORK|WAIT|DROP|STOP"
+        },
+        "tag": {
+            "type": "string",
+            "pattern": "[0-9A-Za-z]+(_[0-9A-Za-z]+)*"
+        },
+        "github-issue": {
+            "type": "object",
+            "properties": {
+                "repo": { "type": "string" },
+                "issue": { "type": "integer" }
+            },
+            "required": ["repo", "issue"]
+        },
+        "github-event": {
+            "type": "object",
+            "properties": {
+                "event": { "type": "integer" }
+            },
+            "required": ["event"]
+        },
+        "transition": {
+            "type": "object",
+            "properties": {
+                "at": { "type": "string", "format": "date-time" },
+                "to": { "$ref": "#/definitions/todo-state" },
+                "from": { "$ref": "#/definitions/todo-state" },
+                "github": { "$ref": "#/definitions/github-event" },
+                "note": { "type": "string" }
+            },
+            "required": ["at", "to"]
+        },
+        "interval": {
+            "type": "object",
+            "properties": {
+                "start": { "type": "string", "format": "date-time" },
+                "stop": { "type": "string", "format": "date-time" },
+                "note": { "type": "string" }
+            },
+            "required": ["start", "stop"]
+        }
+    },
+    "type": "object",
+    "properties": {
+        "title": { "type": "string" },
+        "uuid": { "$ref": "#/definitions/uuid" },
+        "slug": { "$ref": "#/definitions/slug" },
+        "todo": { "$ref": "#/definitions/todo-state" },
+        "tags": {
+            "type": "array",
+            "items": { "$ref": "#/definitions/tag" }
+        },
+        "github": { "$ref": "#/definitions/github-issue" },
+        "logbook": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+                "oneOf": [
+                    { "$ref": "#/definitions/transition" },
+                    { "$ref": "#/definitions/interval" }
+                ]
+            }
+        }
+    },
+    "required": ["title", "uuid", "slug", "todo", "tags", "logbook"]
+}
