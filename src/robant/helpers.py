@@ -443,28 +443,34 @@ def validateMetadataForest(d):
     intervals = intervaltree.IntervalTree()
     schema = getMetadataSchema()
     for m in yieldRootMetadata(d):
-        p = m.parent / "PLANS.rst"
-        with open(m, "r") as metadata_src, open(p, "r") as plans_src:
-            metadata = yaml.load(metadata_src, Loader=NoDatesSafeLoader)
-            actions = readActionStateMap(plans_src)
-            jsonschema.validate(metadata, schema)
-            checkUuid(metadata)
-            checkRoot(metadata)
-            checkEntries(metadata)
-            checkActionConstraints(metadata, actions)
-        for n in yieldLimbMetadata(m):
-            q = n.parent / "PLANS.rst"
-            with open(n, "r") as metadata_src, open(q, "r") as plans_src:
+        try:
+            p = m.parent / "PLANS.rst"
+            with open(m, "r") as metadata_src, open(p, "r") as plans_src:
                 metadata = yaml.load(metadata_src, Loader=NoDatesSafeLoader)
                 actions = readActionStateMap(plans_src)
                 jsonschema.validate(metadata, schema)
                 checkUuid(metadata)
-                if isLeafMetadata(n):
-                    checkLeaf(metadata)
-                else:
-                    checkLimb(metadata)
+                checkRoot(metadata)
                 checkEntries(metadata)
                 checkActionConstraints(metadata, actions)
+        except Exception as err:
+            print("\n\nFailed validation: {0}: {1}".format(m, err))
+        for n in yieldLimbMetadata(m):
+            try:
+                q = n.parent / "PLANS.rst"
+                with open(n, "r") as metadata_src, open(q, "r") as plans_src:
+                    metadata = yaml.load(metadata_src, Loader=NoDatesSafeLoader)
+                    actions = readActionStateMap(plans_src)
+                    jsonschema.validate(metadata, schema)
+                    checkUuid(metadata)
+                    if isLeafMetadata(n):
+                        checkLeaf(metadata)
+                    else:
+                        checkLimb(metadata)
+                    checkEntries(metadata)
+                    checkActionConstraints(metadata, actions)
+            except Exception as err:
+                print("\n\nFailed validation: {0}: {1}".format(n, err))
 
 
 # Local Variables:
