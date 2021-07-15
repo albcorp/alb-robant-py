@@ -22,5 +22,10 @@ class RepositoryError(Exception):
 
 
 class MissingMetadataError(Exception):
-    "Traversal encoutered non-excluded folder with no metadata"
+    "Traversal encountered non-excluded folder with no project metadata"
+    pass
+
+
+class MissingPlansError(Exception):
+    "Traversal encountered non-excluded folder with no project plans"
     pass

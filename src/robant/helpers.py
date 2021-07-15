@@ -25,7 +25,11 @@ import intervaltree
 import jsonschema
 import yaml
 
-from robant.exceptions import RepositoryError, MissingMetadataError
+from robant.exceptions import (
+    RepositoryError,
+    MissingMetadataError,
+    MissingPlansError,
+)
 
 
 # Constants for project hierarchy
@@ -264,12 +268,11 @@ def yieldLimbMetadata(r):
     """Yield limb metadata files from tree of project plans at `r`
 
     Walk the folders from `r`, and yield the metadata filenames as
-    `pathlib.Path` objects.
+    `pathlib.Path` objects.  Does not verify the existene of the
+    metadata file.
 
     :param r: Filename of a root metadata file
     :raises RepositoryError: If `r` is not within a Git repository
-    :raises MissingMetadataError: If a folder without project metadata
-       is encountered
     :return: Sequence of limb metadata filenames in depth-first
        pre-order traversal
     :rtype: collections.Iterable[pathlib.Path]
@@ -280,12 +283,8 @@ def yieldLimbMetadata(r):
         "Check for limb metadata at each child folder and recur"
         for e in d.iterdir():
             if e.is_dir() and e.name not in PROJECT_EXCLUDE_DIRS:
-                f = e / PROJECT_METADATA_NAME
-                if f.is_file():
-                    yield f
-                    yield from visit(e)
-                else:
-                    raise MissingMetadataError(f"Missing metadata file: {f}")
+                yield e / PROJECT_METADATA_NAME
+                yield from visit(e)
 
     # Walk project hierarchy and yield metadata filenames
     yield from visit(Path(r).resolve().parent)
@@ -458,6 +457,10 @@ def validateMetadataForest(d):
         for n in yieldLimbMetadata(m):
             try:
                 q = n.parent / "PLANS.rst"
+                if not n.is_file():
+                    raise MissingMetadataError(f"Missing metadata file: {n}")
+                if not q.is_file():
+                    raise MissingPlansError(f"Missing plans file: {q}")
                 with open(n, "r") as metadata_src, open(q, "r") as plans_src:
                     metadata = yaml.load(metadata_src, Loader=NoDatesSafeLoader)
                     actions = readActionStateMap(plans_src)
