@@ -6,10 +6,6 @@
 :Contact: albcorp@gmail.com
 :Copyright: 2021 Andrew Burrow
 
-Walk project hierarchy reading files that contain project metadata and
-plans, and check that metadata conforms to the schema and satisifies the
-TODO state constraints
-
 """
 
 __docformat__ = "restructuredtext"
@@ -25,8 +21,10 @@ def run_validation():
     parser = argparse.ArgumentParser(
         prog="robant",
         description=(
-            "Validate project metadata and folders against schema and "
-            "TODO state constraints"
+            "Walk project hierarchy reading the metadata and project plan files. "
+            "Validate 'METADATA.yml' files against schema. Check uniqueness "
+            "constraints on project UUIDs. Check TODO state constraints on projects "
+            "and actions. Check log record constraints on intervals and transitions"
         ),
         epilog=(
             "robant Copyright (C) 2021 Andrew Burrow. "
@@ -40,7 +38,7 @@ def run_validation():
         "--project",
         action="store",
         default=".",
-        help="Filename of project to validate",
+        help="Filename of folder containing project plans to validate",
     )
     args = parser.parse_args()
 

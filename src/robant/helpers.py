@@ -36,6 +36,7 @@ from robant.exceptions import (
 
 PROJECT_EXCLUDE_DIRS = ["LIB", "SRC", "TMP"]
 PROJECT_METADATA_NAME = "METADATA.yml"
+PROJECT_GIT_NAME = ".git"
 
 # Constants and singleton for metadata JSON schema.  Use
 # `getMetadataSchema`
@@ -132,99 +133,86 @@ def locateRepositoryRoot(d):
 
     """
     for e in (Path(d).resolve() / PROJECT_METADATA_NAME).parents:
-        if (e / ".git").is_dir():
+        if (e / PROJECT_GIT_NAME).is_dir():
             return e
     raise RepositoryError(f"No repository found: {d}")
 
 
 @icontract.require(lambda f: True)
-def isPlanMetadata(f):
-    """Is `f` a filename of project metadata?
-
-    A *plan metadata* file contains the metadata of a project plan.
-    Plan metadata does not distinquish between root, limb, or leaf of
-    the project plan hierarchy.
-
-    :param f: Filename of regular file
-    :raises RepositoryError: If `f` is not within a Git repository
-    :return: Whether `f` is the filename of a plan metadata file
-    :rtype: bool
-
-    """
-    f = Path(f).resolve()
-    if f.name != PROJECT_METADATA_NAME or not f.is_file():
-        return False
-    for d in f.parents:
-        if (d / ".git").is_dir():
-            return True
-    raise RepositoryError(f"No repository found: {f}")
-
-
-@icontract.require(lambda f: True)
 def isRootMetadata(f):
-    """Is `f` a filename of project root metadata?
+    """Is `f` the metadata filename of a root project?
 
-    A *root metadata* file contains the metadata of a root project plan.
-    A *root project plan* is one with no parent.
+    Assume `f` is in a Git repository that contains the entire project
+    hierarchy.  Return true iff `f` is the filename of a metadata file
+    for a root project.  A *root project* is a project that is not
+    contained by a super project
 
     :param f: Filename of regular file
-    :raises RepositoryError: If `f` is not within a Git repository
-    :return: Whether `f` is the filename of a root metadata file
+    :return: Whether `f` is the metadata filename of a root project
     :rtype: bool
 
     """
     f = Path(f).resolve()
+    g = f.parent / PROJECT_GIT_NAME
+    e = f.parent.parent / PROJECT_METADATA_NAME
     if f.name != PROJECT_METADATA_NAME or not f.is_file():
         return False
-    if (f.parent / ".git").is_dir():
-        return True
-    for d in f.parent.parents:
-        if (d / PROJECT_METADATA_NAME).is_file():
-            return False
-        if (d / ".git").is_dir():
-            return True
-    raise RepositoryError(f"No repository found: {f}")
+    if not g.is_dir() and e.is_file():
+        return False
+    return True
 
 
 @icontract.require(lambda f: True)
 def isLimbMetadata(f):
-    """Is `f` a filename of project limb metadata?
+    """Is `f` a metadata filename of a limb project?
 
-    A *limb metadata* file contains the metadata of a limb project plan.
-    A *limb project plan* is one with a parent.
+    Assume `f` is in a Git repository that contains the entire project
+    hierarchy.  Return true iff `f` is the filename of a metadata file
+    for a limb project.  A *limb project* is a project that is contained
+    by a super project and that contains sub projects
 
     :param f: Filename of regular file
-    :raises RepositoryError: If `f` is not within a Git repository
-    :return: Whether `f` is the filename of a limb metadata file
+    :return: Whether `f` is the metadata filename of a limb project
     :rtype: bool
 
     """
     f = Path(f).resolve()
-    q = locateRepositoryRoot(f.parent)
-    return (
-        f.name == PROJECT_METADATA_NAME
-        and f.is_file()
-        and f.parent != q
-        and (f.parent.parent / PROJECT_METADATA_NAME).is_file()
-    )
+    g = f.parent / PROJECT_GIT_NAME
+    e = f.parent.parent / PROJECT_METADATA_NAME
+    if f.name != PROJECT_METADATA_NAME or not f.is_file():
+        return False
+    if g.is_dir() or not e.is_file():
+        return False
+    for d in f.parent.iterdir():
+        if (
+            d.is_dir()
+            and d.name not in PROJECT_EXCLUDE_DIRS
+            and (d / PROJECT_METADATA_NAME).is_file()
+        ):
+            return True
+    return False
 
 
 @icontract.require(lambda f: True)
 def isLeafMetadata(f):
     """Is `f` a filename of project leaf metadata?
 
-    A *leaf metadata* file contains the metadata of a leaf project plan.
-    A *leaf project plan* is one with no children.
+    Assume `f` is in a Git repository that contains the entire project
+    hierarchy.  Return true iff `f` is the filename of a metadata file
+    for a leaf project.  A *leaf project* is a project that is contained
+    by a super project and that contains no sub projects
 
     :param f: Filename of regular file
-    :raises RepositoryError: If `f` is not within a Git repository
     :return: Whether `f` is the filename of a leaf metadata file
     :rtype: bool
 
     """
     f = Path(f).resolve()
-    q = locateRepositoryRoot(f.parent)
+    g = f.parent / PROJECT_GIT_NAME
+    e = f.parent.parent / PROJECT_METADATA_NAME
     if f.name != PROJECT_METADATA_NAME or not f.is_file():
+        return False
+    if g.is_dir() or not e.is_file():
         return False
     for d in f.parent.iterdir():
         if (
@@ -237,66 +225,74 @@ def isLeafMetadata(f):
 
 
 @icontract.require(lambda d: Path(d).is_dir())
-def yieldRootMetadata(d):
-    """Yield root metadata files from forest of project plans
+def yieldLabeledMetadata(d):
+    """Yield metadata files from project hierarchy with position labels
 
-    Walk the folders from `locateRepositoryRoot(d)`, and yield the
-    filenames of root metadata files as `pathlib.Path` objects.
+    Walk the folders from `d`, and yield pairs of the form `(LABEL,
+    PATH)` where
+
+    `LABEL`
+       Whether the project is a ``ROOT``, ``LIMB``, or ``LEAF`` in the
+       project hierarchy in terms of `ROOT`, `LIMB`, `LEAF`.  See
+       `isRootMetadata`, `isLimbMetadata`, and `isLeafMetadata` for details
+
+    `PATH`
+       The filename of the metadata file that defines the project
 
     :param d: Filename of a directory
-    :raises RepositoryError: If `d` is not within a Git repository
-    :return: Sequence of root metadata filenames
+    :return: Sequence of pairs of labels and metadata filenames where
+       the labels are one of ``ROOT``, ``LIMB``, or ``LEAF``
     :rtype: collections.Iterable[pathlib.Path]
 
     """
 
     def hunt(f):
-        "Check for root metadata at `f` or recur on sibling folders"
+        "Check for root metadata at `f` and recur on subfolders"
         if f.is_file():
-            yield f
+            yield "ROOT", f
+            for d in f.parent.iterdir():
+                if d.is_dir() and d.name not in PROJECT_EXCLUDE_DIRS:
+                    yield from visit(d / PROJECT_METADATA_NAME)
         else:
             for d in f.parent.iterdir():
                 if d.is_dir() and d.name not in PROJECT_EXCLUDE_DIRS:
                     yield from hunt(d / PROJECT_METADATA_NAME)
 
-    # Walk project hierarchy, and yield metadata filenames
-    yield from hunt(locateRepositoryRoot(d) / PROJECT_METADATA_NAME)
+    def visit(f):
+        "Check for limb or leaf metadata and recur on subfolders"
+        if f.is_file():
+            # Defer the yield until a child has been seen
+            deferred = True
+            for d in f.parent.iterdir():
+                if d.is_dir() and d.name not in PROJECT_EXCLUDE_DIRS:
+                    if deferred:
+                        yield "LIMB", f
+                        deferred = False
+                    yield from visit(d / PROJECT_METADATA_NAME)
+            if deferred:
+                yield "LEAF", f
+                deferred = False
 
-
-@icontract.require(lambda r: isRootMetadata(r))
-def yieldLimbMetadata(r):
-    """Yield limb metadata files from tree of project plans at `r`
-
-    Walk the folders from `r`, and yield the metadata filenames as
-    `pathlib.Path` objects.  Does not verify the existene of the
-    metadata file.
-
-    :param r: Filename of a root metadata file
-    :raises RepositoryError: If `r` is not within a Git repository
-    :return: Sequence of limb metadata filenames in depth-first
-       pre-order traversal
-    :rtype: collections.Iterable[pathlib.Path]
-
-    """
-
-    def visit(d):
-        "Check for limb metadata at each child folder and recur"
-        for e in d.iterdir():
-            if e.is_dir() and e.name not in PROJECT_EXCLUDE_DIRS:
-                yield e / PROJECT_METADATA_NAME
-                yield from visit(e)
-
-    # Walk project hierarchy and yield metadata filenames
-    yield from visit(Path(r).resolve().parent)
+    # Walk project hierarchy, and yield labelled metadata filenames
+    f = Path(d).resolve() / PROJECT_METADATA_NAME
+    g = f.parent / PROJECT_GIT_NAME
+    e = f.parent.parent / PROJECT_METADATA_NAME
+    if not f.is_file():
+        yield from hunt(f)
+    elif g.is_dir() or not e.is_file():
+        yield from hunt(f)
+    else:
+        yield from visit(f)
 
 
 @icontract.require(lambda d: Path(d).is_dir())
 def validateMetadataForest(d):
-    """Validate metadata for forest of project plans
+    """Validate metadata for forest of project plans under `d`
 
-    Walk the folders from `locateRepositoryRoot(d)`, and validate the
-    metadata of the project plans.  Validate against
-    `getMetadataSchema()` and simple self-consistency constraints.
+    Walk the folders from `d`.  Validate metadata files against schema.
+    Check uniqueness constraints on UUID.  Check TODO state constraints
+    on projects and actions.  Check log record constraints on intervals
+    and transitions
 
     :param d: Filename of a directory
     :raises RepositoryError: If `d` is not within a Git repository
@@ -348,7 +344,7 @@ def validateMetadataForest(d):
                 f"Leaf project MUST NOT be in 'ROOT' todo state: {uuid}"
             )
 
-    def checkEntries(metadata):
+    def checkLogConstraints(metadata):
         "Enforce log record constraints in `metadata`"
         uuid = metadata["uuid"]
         logbook = metadata["logbook"]
@@ -437,43 +433,33 @@ def validateMetadataForest(d):
                     f"Projects in {todo} state MUST NOT contain HOLD, WAIT, WORK, or QUIT actions: {uuid}"
                 )
 
-    # Walk project hierarchy and validate project metadata
+    # Walk project hierarchy and validate projects
     uuids = {}
     intervals = intervaltree.IntervalTree()
     schema = getMetadataSchema()
-    for m in yieldRootMetadata(d):
+    locateRepositoryRoot(d)
+    for l, m in yieldLabeledMetadata(d):
+        p = m.parent / "PLANS.rst"
         try:
-            p = m.parent / "PLANS.rst"
+            if not m.is_file():
+                raise MissingMetadataError(f"Missing metadata file: {m}")
+            if not p.is_file():
+                raise MissingPlansError(f"Missing plans file: {p}")
             with open(m, "r") as metadata_src, open(p, "r") as plans_src:
                 metadata = yaml.load(metadata_src, Loader=NoDatesSafeLoader)
                 actions = readActionStateMap(plans_src)
                 jsonschema.validate(metadata, schema)
                 checkUuid(metadata)
-                checkRoot(metadata)
-                checkEntries(metadata)
+                if l == "ROOT":
+                    checkRoot(metadata)
+                if l == "LIMB":
+                    checkLimb(metadata)
+                if l == "LEAF":
+                    checkLeaf(metadata)
+                checkLogConstraints(metadata)
                 checkActionConstraints(metadata, actions)
         except Exception as err:
             print("\n\nFailed validation: {0}: {1}".format(m, err))
-        for n in yieldLimbMetadata(m):
-            try:
-                q = n.parent / "PLANS.rst"
-                if not n.is_file():
-                    raise MissingMetadataError(f"Missing metadata file: {n}")
-                if not q.is_file():
-                    raise MissingPlansError(f"Missing plans file: {q}")
-                with open(n, "r") as metadata_src, open(q, "r") as plans_src:
-                    metadata = yaml.load(metadata_src, Loader=NoDatesSafeLoader)
-                    actions = readActionStateMap(plans_src)
-                    jsonschema.validate(metadata, schema)
-                    checkUuid(metadata)
-                    if isLeafMetadata(n):
-                        checkLeaf(metadata)
-                    else:
-                        checkLimb(metadata)
-                    checkEntries(metadata)
-                    checkActionConstraints(metadata, actions)
-            except Exception as err:
-                print("\n\nFailed validation: {0}: {1}".format(n, err))
 
 
 # Local Variables:
