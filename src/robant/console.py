@@ -1,14 +1,14 @@
 #! /usr/bin/python
 
-"""Validate project metadata and folders against schema and self-consistency constraints
+"""Validate project metadata against schema and TODO state constraints
 
 :Author: Andrew Burrow
 :Contact: albcorp@gmail.com
 :Copyright: 2021 Andrew Burrow
 
-Read project metadata files and folder structure, and check that metadata
-conforms to the project plans schema and satisifies simple self-consistency
-constraints
+Walk project hierarchy reading files that contain project metadata and
+plans, and check that metadata conforms to the schema and satisifies the
+TODO state constraints
 
 """
 
@@ -26,7 +26,7 @@ def run_validation():
         prog="robant",
         description=(
             "Validate project metadata and folders against schema and "
-            "self-consistency constraints"
+            "TODO state constraints"
         ),
         epilog=(
             "robant Copyright (C) 2021 Andrew Burrow. "

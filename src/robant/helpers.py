@@ -17,6 +17,7 @@ __docformat__ = "restructuredtext"
 
 import json
 import pkgutil
+import re
 from pathlib import Path
 
 import icontract
@@ -37,6 +38,28 @@ PROJECT_METADATA_NAME = "METADATA.yml"
 
 METADATA_SCHEMA_FNAME = "schema/metadata.json"
 METADATA_SCHEMA_JSON = None
+
+# Constants for parsing project actions in project plans
+#
+# Match a project plan action directive with anchoring to the start and end of
+# line
+# Consume 2 subexpressions as follows
+#
+# 1. (mandatory) TODO keyword, labelled `todo`
+# 2. (mandatory) Title text, labelled `title`
+PLANS_ACTION_PAT = (
+    # Anchor
+    r"^"
+    # Directive prefix
+    r"\.\. +todo:: +"
+    # Action TODO state
+    r"(?P<todo>[A-Z]+) +"
+    # Action title
+    r"(?P<title>.*?) *"
+    # Anchor
+    r"$"
+)
+PLANS_ACTION_RE = re.compile(PLANS_ACTION_PAT)
 
 
 class NoDatesSafeLoader(yaml.SafeLoader):
@@ -278,13 +301,19 @@ def validateMetadataForest(d):
 
     :param d: Filename of a directory
     :raises RepositoryError: If `d` is not within a Git repository
-    :raises MissingMetadataError: If a folder without project metadata
-       is encountered
-    :raises SchemaError: If a project metadata file is invalid with
-       respect to the metadata schema `getMetadataSchema()`
-    :raises ValueError: If a self-consistency constraint is violated
 
     """
+
+    def readActionStateMap(plans_src):
+        "Collect map from TODO states to lists of titles for actions in `plans_src`"
+        m = {}
+        for line in plans_src:
+            action_match = PLANS_ACTION_RE.match(line)
+            if action_match:
+                todo = action_match["todo"]
+                titles = m.get(todo, []) + [action_match["title"]]
+                m[todo] = titles
+        return m
 
     def checkUuid(metadata):
         "Enforce UUID constraints on `metadata`"
@@ -302,13 +331,22 @@ def validateMetadataForest(d):
                 f"Root project MUST be in 'ROOT' todo state: {uuid}: {todo}"
             )
 
-    def checkNonRoot(metadata):
-        "Enforce todo-state constraints on `metadata` of non-root project"
+    def checkLimb(metadata):
+        "Enforce todo-state constraints on `metadata` of limb project"
+        todo = metadata["todo"]
+        uuid = metadata["uuid"]
+        if todo != "LOOK":
+            raise ValueError(
+                f"Interior project MUST be in 'LOOK' todo state: {uuid}"
+            )
+
+    def checkLeaf(metadata):
+        "Enforce todo-state constraints on `metadata` of leaf project"
         todo = metadata["todo"]
         uuid = metadata["uuid"]
         if todo == "ROOT":
             raise ValueError(
-                f"Non-root project MUST NOT be in 'ROOT' todo state: {uuid}"
+                f"Leaf project MUST NOT be in 'ROOT' todo state: {uuid}"
             )
 
     def checkEntries(metadata):
@@ -349,24 +387,84 @@ def validateMetadataForest(d):
                     f"Entry MUST NOT start before preceding entry: {uuid}: {curr_start}"
                 )
 
+    def checkActionConstraints(metadata, actions):
+        "Enforce todo-state constraints on `metadata` and `actions`"
+        uuid = metadata["uuid"]
+        todo = metadata["todo"]
+        if not set(actions.keys()).issubset(
+            {"HOLD", "WAIT", "WORK", "QUIT", "DROP", "STOP"}
+        ):
+            raise ValueError(f"Unknown TODO state in project actions: {uuid}")
+        if todo == "ROOT" or todo == "LOOK" or todo == "NOTE":
+            if actions:
+                raise ValueError(
+                    f"Projects in {todo} state MUST NOT contain actions: {uuid}"
+                )
+        elif todo == "WATCH":
+            if "HOLD" not in actions and "WAIT" not in actions:
+                raise ValueError(
+                    f"Projects in {todo} state MUST contain HOLD or WAIT actions: {uuid}"
+                )
+            if "WORK" in actions or "QUIT" in actions:
+                raise ValueError(
+                    f"Projects in {todo} state MUST NOT contain WORK or QUIT actions: {uuid}"
+                )
+        elif todo == "START":
+            if "WORK" not in actions or len(actions["WORK"]) != 1:
+                raise ValueError(
+                    f"Projects in {todo} state MUST contain exactly one WORK action: {uuid}"
+                )
+            if "QUIT" in actions:
+                raise ValueError(
+                    f"Projects in {todo} state MUST NOT contain QUIT actions: {uuid}"
+                )
+        elif todo == "QUASH":
+            if "QUIT" not in actions:
+                raise ValueError(
+                    f"Projects in {todo} state MUST contain at least one QUIT action: {uuid}"
+                )
+            if "HOLD" in actions or "WAIT" in actions or "WORK" in actions:
+                raise ValueError(
+                    f"Projects in {todo} state MUST NOT contain HOLD, WAIT, or WORK actions: {uuid}"
+                )
+        elif todo == "CLOSE":
+            if (
+                "HOLD" in actions
+                or "WAIT" in actions
+                or "WORK" in actions
+                or "QUIT" in actions
+            ):
+                raise ValueError(
+                    f"Projects in {todo} state MUST NOT contain HOLD, WAIT, WORK, or QUIT actions: {uuid}"
+                )
+
     # Walk project hierarchy and validate project metadata
     uuids = {}
     intervals = intervaltree.IntervalTree()
     schema = getMetadataSchema()
-    for r in yieldRootMetadata(d):
-        with open(r, "r") as src:
-            metadata = yaml.load(src, Loader=NoDatesSafeLoader)
+    for m in yieldRootMetadata(d):
+        p = m.parent / "PLANS.rst"
+        with open(m, "r") as metadata_src, open(p, "r") as plans_src:
+            metadata = yaml.load(metadata_src, Loader=NoDatesSafeLoader)
+            actions = readActionStateMap(plans_src)
             jsonschema.validate(metadata, schema)
             checkUuid(metadata)
             checkRoot(metadata)
             checkEntries(metadata)
-        for l in yieldLimbMetadata(r):
-            with open(l, "r") as src:
-                metadata = yaml.load(src, Loader=NoDatesSafeLoader)
+            checkActionConstraints(metadata, actions)
+        for n in yieldLimbMetadata(m):
+            q = n.parent / "PLANS.rst"
+            with open(n, "r") as metadata_src, open(q, "r") as plans_src:
+                metadata = yaml.load(metadata_src, Loader=NoDatesSafeLoader)
+                actions = readActionStateMap(plans_src)
                 jsonschema.validate(metadata, schema)
                 checkUuid(metadata)
-                checkNonRoot(metadata)
+                if isLeafMetadata(n):
+                    checkLeaf(metadata)
+                else:
+                    checkLimb(metadata)
                 checkEntries(metadata)
+                checkActionConstraints(metadata, actions)
 
 
 # Local Variables:
