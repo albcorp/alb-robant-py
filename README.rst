@@ -24,6 +24,35 @@ collaborate through software systems that impose representations of
 work.  ``Robant`` is intended to assist the individual to establish
 their own view in the context of signals from external views.
 
+------------
+Installation
+------------
+
+This prototype uses `Poetry`_ to manage dependencies and build
+packages.  Therefore, your first step should be to ensure that Poetry is
+available on your workstation.
+
+.. code:: bash
+
+   python -m pip install --user pipx
+   python -m pipx ensurepath
+   pipx install poetry
+
+Build the prototype using the ``install`` subcommand.
+
+.. code:: bash
+
+   poetry install
+
+Run the prototype using the ``run`` subcommand.
+
+.. code:: bash
+
+   poetry run robant -P ~/Documents
+
+.. _Poetry:
+   https://python-poetry.org/
+
 .. Local Variables:
 .. mode: rst
 .. ispell-local-dictionary: "british"
