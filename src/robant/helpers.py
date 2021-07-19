@@ -29,6 +29,15 @@ from robant.exceptions import (
     RepositoryError,
     MissingMetadataError,
     MissingPlansError,
+    ProjectUuidError,
+    ProjectTodoError,
+    LogSpanError,
+    LogOverlapError,
+    LogInceptionError,
+    LogSequenceError,
+    ActionForbiddenError,
+    ActionMissingError,
+    ActionTodoError,
 )
 
 
@@ -38,11 +47,20 @@ PROJECT_EXCLUDE_DIRS = ["LIB", "SRC", "TMP"]
 PROJECT_METADATA_NAME = "METADATA.yml"
 PROJECT_GIT_NAME = ".git"
 
-# Constants and singleton for metadata JSON schema.  Use
-# `getMetadataSchema`
+# Constants for TODO states
+
+ACTION_TODO_STATES = {"HOLD", "WAIT", "WORK", "QUIT", "DROP", "STOP"}
+
+# Constants and singleton for metadata JSON schema
 
 METADATA_SCHEMA_FNAME = "schema/metadata.json"
 METADATA_SCHEMA_JSON = None
+
+# Constants for formatting errors
+
+ERROR_WITH_FILE = "\nFailed validation: {0}: {1}"
+ERROR_WITH_LN = "\nFailed validation: {0}:{1}: {2}"
+ERROR_WITH_COL = "\nFailed validation: {0}:{1}:{2}: {3}"
 
 # Constants for parsing project actions in project plans
 #
@@ -68,7 +86,7 @@ PLANS_ACTION_RE = re.compile(PLANS_ACTION_PAT)
 
 
 class NoDatesSafeLoader(yaml.SafeLoader):
-    """YAML loader that does not interpret date strings
+    """YAML loader that ignores date strings and records line numbers
 
     See https://stackoverflow.com/a/37958106 for the explanation
     """
@@ -84,6 +102,14 @@ class NoDatesSafeLoader(yaml.SafeLoader):
                 for tag, regexp in mappings
                 if tag != tag_to_remove
             ]
+
+    def construct_mapping(self, node, deep=False):
+        mapping = super(NoDatesSafeLoader, self).construct_mapping(
+            node, deep=deep
+        )
+        # Add 1 so line numbering starts at 1
+        mapping["__line__"] = node.start_mark.line + 1
+        return mapping
 
 
 # Load datetimes as strings to prevent problems when serialising as JSON
@@ -299,22 +325,18 @@ def validateMetadataForest(d):
 
     """
 
-    def readActionStateMap(plans_src):
-        "Collect map from TODO states to lists of titles for actions in `plans_src`"
-        m = {}
-        for line in plans_src:
-            action_match = PLANS_ACTION_RE.match(line)
+    def yieldNumberedActions(plans_src):
+        "Yield actions from `plans_src` as tuples of line number, TODO state, and title"
+        for line, text in enumerate(plans_src, 1):
+            action_match = PLANS_ACTION_RE.match(text)
             if action_match:
-                todo = action_match["todo"]
-                titles = m.get(todo, []) + [action_match["title"]]
-                m[todo] = titles
-        return m
+                yield (line, action_match["todo"], action_match["title"])
 
     def checkUuid(metadata):
         "Enforce UUID constraints on `metadata`"
         uuid = metadata["uuid"]
         if uuid in uuids:
-            raise ValueError(f"Project UUID MUST be unique: {uuid}")
+            raise ProjectUuidError(f"Project UUID MUST be unique: {uuid}")
         uuids[uuid] = metadata
 
     def checkRoot(metadata):
@@ -322,7 +344,7 @@ def validateMetadataForest(d):
         todo = metadata["todo"]
         uuid = metadata["uuid"]
         if todo != "ROOT":
-            raise ValueError(
+            raise ProjectTodoError(
                 f"Root project MUST be in 'ROOT' todo state: {uuid}: {todo}"
             )
 
@@ -331,7 +353,7 @@ def validateMetadataForest(d):
         todo = metadata["todo"]
         uuid = metadata["uuid"]
         if todo != "LOOK":
-            raise ValueError(
+            raise ProjectTodoError(
                 f"Interior project MUST be in 'LOOK' todo state: {uuid}"
             )
 
@@ -340,7 +362,7 @@ def validateMetadataForest(d):
         todo = metadata["todo"]
         uuid = metadata["uuid"]
         if todo == "ROOT":
-            raise ValueError(
+            raise ProjectTodoError(
                 f"Leaf project MUST NOT be in 'ROOT' todo state: {uuid}"
             )
 
@@ -354,16 +376,18 @@ def validateMetadataForest(d):
             curr_start = curr["start"]
             curr_stop = curr["stop"]
             if curr_stop < curr_start:
-                raise ValueError(
-                    f"Entries MUST span a non-negative interval: {uuid}: {curr_start}, {curr_stop}"
+                raise LogSpanError(
+                    curr.get("__line__", 1),
+                    f"Entries MUST span a non-negative interval: {uuid}: {curr_start}, {curr_stop}",
                 )
             elif intervals[curr_start:curr_stop]:
                 olap = next(iter(intervals[curr_start:curr_stop]))
                 olap_start = max(curr_start, olap[0])
                 olap_stop = min(curr_stop, olap[1])
                 olap_uuid = olap[2]["uuid"]
-                raise ValueError(
-                    f"Entries MUST NOT overlap: {uuid}, {olap_uuid}: {olap_start}, {olap_stop}"
+                raise LogOverlapError(
+                    curr.get("__line__", 1),
+                    f"Entries MUST NOT overlap: {uuid}, {olap_uuid}: {olap_start}, {olap_stop}",
                 )
             else:
                 intervals[curr_start:curr_stop] = metadata
@@ -371,66 +395,90 @@ def validateMetadataForest(d):
         # Enforce sequence constraints on logbook entries
         for curr in logbook[-1:]:
             if "at" not in curr or "from" in curr:
-                raise ValueError(
-                    f"First entry MUST record project inception: {uuid}"
+                raise LogInceptionError(
+                    curr.get("__line__", 1),
+                    f"First entry MUST record project inception: {uuid}",
                 )
         for pred, curr in zip(logbook[-1::-1], logbook[-2::-1]):
             pred_stop = pred["stop"] if "stop" in pred else pred["at"]
             curr_start = curr["start"] if "start" in curr else curr["at"]
             if curr_start < pred_stop:
-                raise ValueError(
-                    f"Entry MUST NOT start before preceding entry: {uuid}: {curr_start}"
+                raise LogSequenceError(
+                    curr.get("__line__", 1),
+                    f"Entry MUST NOT start before preceding entry: {uuid}: {curr_start}",
                 )
 
     def checkActionConstraints(metadata, actions):
         "Enforce todo-state constraints on `metadata` and `actions`"
         uuid = metadata["uuid"]
         todo = metadata["todo"]
-        if not set(actions.keys()).issubset(
-            {"HOLD", "WAIT", "WORK", "QUIT", "DROP", "STOP"}
-        ):
-            raise ValueError(f"Unknown TODO state in project actions: {uuid}")
-        if todo == "ROOT" or todo == "LOOK" or todo == "NOTE":
-            if actions:
-                raise ValueError(
-                    f"Projects in {todo} state MUST NOT contain actions: {uuid}"
+        actn_todos = {actn_todo for _, actn_todo, _ in actions}
+
+        # Check absence of actions
+        if (todo == "ROOT" or todo == "LOOK" or todo == "NOTE") and actions:
+            raise ActionForbiddenError(
+                actions[0][0],
+                f"Projects in {todo} state MUST NOT contain actions: {uuid}",
+            )
+
+        # Check absence of action states
+        for line, actn_todo, title in actions:
+            if actn_todo not in ACTION_TODO_STATES:
+                raise ActionTodoError(
+                    line,
+                    f"Unknown TODO state {actn_todo} in project actions: {uuid}",
                 )
-        elif todo == "WATCH":
-            if "HOLD" not in actions and "WAIT" not in actions:
-                raise ValueError(
-                    f"Projects in {todo} state MUST contain HOLD or WAIT actions: {uuid}"
+            elif (
+                todo == "WATCH"
+                and (actn_todo == "WORK" or actn_todo == "QUIT")
+                or todo == "START"
+                and actn_todo == "QUIT"
+                or todo == "QUASH"
+                and (
+                    actn_todo == "HOLD"
+                    or actn_todo == "WAIT"
+                    or actn_todo == "WORK"
                 )
-            if "WORK" in actions or "QUIT" in actions:
-                raise ValueError(
-                    f"Projects in {todo} state MUST NOT contain WORK or QUIT actions: {uuid}"
+                or todo == "CLOSE"
+                and (
+                    actn_todo == "HOLD"
+                    or actn_todo == "WAIT"
+                    or actn_todo == "WORK"
+                    or actn_todo == "QUIT"
                 )
-        elif todo == "START":
-            if "WORK" not in actions or len(actions["WORK"]) != 1:
-                raise ValueError(
-                    f"Projects in {todo} state MUST contain exactly one WORK action: {uuid}"
-                )
-            if "QUIT" in actions:
-                raise ValueError(
-                    f"Projects in {todo} state MUST NOT contain QUIT actions: {uuid}"
-                )
-        elif todo == "QUASH":
-            if "QUIT" not in actions:
-                raise ValueError(
-                    f"Projects in {todo} state MUST contain at least one QUIT action: {uuid}"
-                )
-            if "HOLD" in actions or "WAIT" in actions or "WORK" in actions:
-                raise ValueError(
-                    f"Projects in {todo} state MUST NOT contain HOLD, WAIT, or WORK actions: {uuid}"
-                )
-        elif todo == "CLOSE":
-            if (
-                "HOLD" in actions
-                or "WAIT" in actions
-                or "WORK" in actions
-                or "QUIT" in actions
             ):
-                raise ValueError(
-                    f"Projects in {todo} state MUST NOT contain HOLD, WAIT, WORK, or QUIT actions: {uuid}"
+                raise ActionTodoError(
+                    line,
+                    f"Projects in {todo} state MUST NOT contain {actn_todo} actions: {uuid}",
+                )
+
+        # Check existence of action states
+        if (
+            todo == "WATCH"
+            and "HOLD" not in actn_todos
+            and "WAIT" not in actn_todos
+        ):
+            raise ActionMissingError(
+                f"Projects in {todo} state MUST contain at least one HOLD or WAIT action: {uuid}"
+            )
+        elif todo == "START" and "WORK" not in actn_todos:
+            raise ActionMissingError(
+                f"Projects in {todo} state MUST contain exactly one WORK action: {uuid}"
+            )
+        elif todo == "QUASH" and "QUIT" not in actn_todos:
+            raise ActionMissingError(
+                f"Projects in {todo} state MUST contain at least one QUIT action: {uuid}"
+            )
+
+        # Check cardinality of action states
+        if todo == "START":
+            lines = list(
+                line for line, actn_todo, _ in actions if actn_todo == "WORK"
+            )
+            if len(lines) > 1:
+                raise ActionTodoError(
+                    lines[1],
+                    f"Projects in {todo} state MUST contain exactly one WORK action: {uuid}",
                 )
 
     # Walk project hierarchy and validate projects
@@ -442,24 +490,57 @@ def validateMetadataForest(d):
         p = m.parent / "PLANS.rst"
         try:
             if not m.is_file():
-                raise MissingMetadataError(f"Missing metadata file: {m}")
+                raise MissingMetadataError(f"Missing metadata file")
             if not p.is_file():
-                raise MissingPlansError(f"Missing plans file: {p}")
+                raise MissingPlansError(f"Missing plans file")
             with open(m, "r") as metadata_src, open(p, "r") as plans_src:
                 metadata = yaml.load(metadata_src, Loader=NoDatesSafeLoader)
-                actions = readActionStateMap(plans_src)
+                actions = list(yieldNumberedActions(plans_src))
                 jsonschema.validate(metadata, schema)
-                checkUuid(metadata)
-                if l == "ROOT":
-                    checkRoot(metadata)
-                if l == "LIMB":
-                    checkLimb(metadata)
-                if l == "LEAF":
-                    checkLeaf(metadata)
-                checkLogConstraints(metadata)
-                checkActionConstraints(metadata, actions)
+                try:
+                    checkUuid(metadata)
+                except ValueError as err:
+                    print(ERROR_WITH_FILE.format(m, err))
+                try:
+                    if l == "ROOT":
+                        checkRoot(metadata)
+                    if l == "LIMB":
+                        checkLimb(metadata)
+                    if l == "LEAF":
+                        checkLeaf(metadata)
+                except (ProjectUuidError, ProjectTodoError) as err:
+                    print(ERROR_WITH_FILE.format(m, err))
+                try:
+                    checkLogConstraints(metadata)
+                except (
+                    LogSpanError,
+                    LogOverlapError,
+                    LogInceptionError,
+                    LogSequenceError,
+                ) as err:
+                    print(ERROR_WITH_LN.format(m, err.line, err.message))
+                try:
+                    checkActionConstraints(metadata, actions)
+                except (ActionForbiddenError, ActionTodoError) as err:
+                    print(ERROR_WITH_LN.format(p, err.line, err.message))
+                except ActionMissingError as err:
+                    print(ERROR_WITH_LN.format(p, 1, err))
+        except MissingMetadataError as err:
+            print(ERROR_WITH_FILE.format(m, err))
+        except MissingPlansError as err:
+            print(ERROR_WITH_FILE.format(p, err))
+        except yaml.YAMLError as err:
+            if hasattr(err, "problem_mark"):
+                mark = err.problem_mark
+                print(
+                    ERROR_WITH_COL.format(
+                        m, mark.line + 1, mark.column + 1, err
+                    )
+                )
+            else:
+                print(ERROR_WITH_FILE.format(m, err))
         except Exception as err:
-            print("\n\nFailed validation: {0}: {1}".format(m, err))
+            print(ERROR_WITH_FILE.format(m, err))
 
 
 # Local Variables:
