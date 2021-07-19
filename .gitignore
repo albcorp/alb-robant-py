@@ -11,3 +11,6 @@
 #
 # Ignore documentation output
 /docs/build/*
+
+# Ignore tox working folder
+/.tox
