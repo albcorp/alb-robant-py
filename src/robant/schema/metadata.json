@@ -11,7 +11,7 @@
         },
         "todo-state": {
             "type": "string",
-            "pattern": "ROOT|LOOK|NOTE|WATCH|START|QUASH|CLOSE"
+            "pattern": "^(ROOT|LOOK|NOTE|WATCH|START|QUASH|CLOSE)$"
         },
         "tag": {
             "type": "string",
