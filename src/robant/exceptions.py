@@ -29,3 +29,66 @@ class MissingMetadataError(Exception):
 class MissingPlansError(Exception):
     "Traversal encountered non-excluded folder with no project plans"
     pass
+
+
+class ProjectUuidError(ValueError):
+    "Non-unique project UUID"
+    pass
+
+
+class ProjectTodoError(ValueError):
+    "Project at TODO state is incorrect for location in project hierarchy"
+    pass
+
+
+class LogSpanError(ValueError):
+    "Negative or zero time interval in logbook"
+
+    def __init__(self, line, message):
+        self.line = line
+        self.message = message
+
+
+class LogOverlapError(ValueError):
+    "Overlapping intervals in logbooks of one or more projects"
+
+    def __init__(self, line, message):
+        self.line = line
+        self.message = message
+
+
+class LogInceptionError(ValueError):
+    "Missing inception transition in logbook"
+
+    def __init__(self, line, message):
+        self.line = line
+        self.message = message
+
+
+class LogSequenceError(ValueError):
+    "Entry out of sequence in logbook"
+
+    def __init__(self, line, message):
+        self.line = line
+        self.message = message
+
+
+class ActionForbiddenError(ValueError):
+    "Forbidden project action in project plans"
+
+    def __init__(self, line, message):
+        self.line = line
+        self.message = message
+
+
+class ActionMissingError(ValueError):
+    "Missing project action in project plans"
+    pass
+
+
+class ActionTodoError(ValueError):
+    "Unknown or unexpected TODO state in project plans"
+
+    def __init__(self, line, message):
+        self.line = line
+        self.message = message
