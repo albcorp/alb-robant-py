@@ -11,9 +11,15 @@
 __docformat__ = "restructuredtext"
 
 
-from robant.helpers import getMetadataSchema, isValidSchema
+from robant.helpers import getMetadataSchema, isValidSchema, isRootMetadata
 
 
 def test_getMetadataSchema():
     schema = getMetadataSchema()
     assert isValidSchema(schema)
+
+
+def test_isRootMetadata():
+    assert isRootMetadata("./tests/data/tree-00/METADATA.yml")
+    assert not isRootMetadata("./tests/data/tree-00/limb-00-00/METADATA.yml")
+    assert not isRootMetadata("./tests/data/tree-00/limb-00-01/METADATA.yml")
