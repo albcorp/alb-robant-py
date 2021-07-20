@@ -165,13 +165,29 @@ def locateRepositoryRoot(d):
 
 
 @icontract.require(lambda f: True)
+def inRepository(f):
+    """Is `f` a file within a Git repository
+
+    :param f: Filename
+    :return: Whether `f` is a filename of a file within a Git repository
+    :rtype: bool
+
+    """
+    e = Path(f).resolve()
+    if e.is_file():
+        for d in e.parents:
+            if (d / PROJECT_GIT_NAME).is_dir():
+                return True
+    return False
+
+
+@icontract.require(lambda f: inRepository(f))
 def isRootMetadata(f):
     """Is `f` the metadata filename of a root project?
 
-    Assume `f` is in a Git repository that contains the entire project
-    hierarchy.  Return true iff `f` is the filename of a metadata file
-    for a root project.  A *root project* is a project that is not
-    contained by a super project
+    Return true iff `f` is the filename of a metadata file for a root
+    project.  A *root project* is a project that is not contained by a
+    super project
 
     :param f: Filename of regular file
     :return: Whether `f` is the metadata filename of a root project
@@ -188,14 +204,13 @@ def isRootMetadata(f):
     return True
 
 
-@icontract.require(lambda f: True)
+@icontract.require(lambda f: inRepository(f))
 def isLimbMetadata(f):
     """Is `f` a metadata filename of a limb project?
 
-    Assume `f` is in a Git repository that contains the entire project
-    hierarchy.  Return true iff `f` is the filename of a metadata file
-    for a limb project.  A *limb project* is a project that is contained
-    by a super project and that contains sub projects
+    Return true iff `f` is the filename of a metadata file for a limb
+    project.  A *limb project* is a project that is contained by a super
+    project and that contains sub projects
 
     :param f: Filename of regular file
     :return: Whether `f` is the metadata filename of a limb project
@@ -219,14 +234,13 @@ def isLimbMetadata(f):
     return False
 
 
-@icontract.require(lambda f: True)
+@icontract.require(lambda f: inRepository(f))
 def isLeafMetadata(f):
     """Is `f` a filename of project leaf metadata?
 
-    Assume `f` is in a Git repository that contains the entire project
-    hierarchy.  Return true iff `f` is the filename of a metadata file
-    for a leaf project.  A *leaf project* is a project that is contained
-    by a super project and that contains no sub projects
+    Return true iff `f` is the filename of a metadata file for a leaf
+    project.  A *leaf project* is a project that is contained by a super
+    project and that contains no sub projects
 
     :param f: Filename of regular file
     :return: Whether `f` is the filename of a leaf metadata file
