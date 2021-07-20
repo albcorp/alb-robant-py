@@ -375,10 +375,10 @@ def validateMetadataForest(d):
         for curr in filter(lambda e: "start" in e, logbook):
             curr_start = curr["start"]
             curr_stop = curr["stop"]
-            if curr_stop < curr_start:
+            if curr_stop <= curr_start:
                 raise LogSpanError(
                     curr.get("__line__", 1),
-                    f"Entries MUST span a non-negative interval: {uuid}: {curr_start}, {curr_stop}",
+                    f"Entries MUST span a positive interval: {uuid}: {curr_start}, {curr_stop}",
                 )
             elif intervals[curr_start:curr_stop]:
                 olap = next(iter(intervals[curr_start:curr_stop]))
