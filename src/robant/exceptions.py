@@ -41,6 +41,14 @@ class ProjectTodoError(ValueError):
     pass
 
 
+class LogTransitionError(ValueError):
+    "Out of sequence TODO states in transition"
+
+    def __init__(self, line, message):
+        self.line = line
+        self.message = message
+
+
 class LogSpanError(ValueError):
     "Negative or zero time interval in logbook"
 
@@ -57,16 +65,8 @@ class LogOverlapError(ValueError):
         self.message = message
 
 
-class LogInceptionError(ValueError):
-    "Missing inception transition in logbook"
-
-    def __init__(self, line, message):
-        self.line = line
-        self.message = message
-
-
 class LogSequenceError(ValueError):
-    "Entry out of sequence in logbook"
+    "Out of sequence entry in logbook"
 
     def __init__(self, line, message):
         self.line = line

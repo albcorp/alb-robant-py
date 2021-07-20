@@ -31,9 +31,9 @@ from robant.exceptions import (
     MissingPlansError,
     ProjectUuidError,
     ProjectTodoError,
+    LogTransitionError,
     LogSpanError,
     LogOverlapError,
-    LogInceptionError,
     LogSequenceError,
     ActionForbiddenError,
     ActionMissingError,
@@ -385,7 +385,31 @@ def validateMetadataForest(d):
         uuid = metadata["uuid"]
         logbook = metadata["logbook"]
 
-        # Enforce interval constraints on logbook entries
+        # Enforce transition constraints
+        transitions = [curr for curr in logbook if "at" in curr]
+        if transitions[0]["to"] != metadata["todo"]:
+            raise LogTransitionError(
+                transitions[0].get("__line__", 1),
+                f"Project TODO state must agree with most recent transition: {uuid}",
+            )
+        if transitions[-1] != logbook[-1] or "from" in transitions[-1]:
+            raise LogTransitionError(
+                transitions[-1].get("__line__", 1),
+                f"First entry MUST record project inception: {uuid}",
+            )
+        for curr, succ in zip(transitions, transitions[1:]):
+            if "from" not in curr:
+                raise LogTransitionError(
+                    curr.get("__line__", 1),
+                    f"Every subsequent transition MUST record the 'from' state: {uuid}",
+                )
+            if curr["from"] != succ["to"]:
+                raise LogTransitionError(
+                    curr.get("__line__", 1),
+                    f"The 'from' state MUST match the preceding 'to' state: {uuid}",
+                )
+
+        # Enforce interval constraints
         for curr in filter(lambda e: "start" in e, logbook):
             curr_start = curr["start"]
             curr_stop = curr["stop"]
@@ -406,13 +430,7 @@ def validateMetadataForest(d):
             else:
                 intervals[curr_start:curr_stop] = metadata
 
-        # Enforce sequence constraints on logbook entries
-        for curr in logbook[-1:]:
-            if "at" not in curr or "from" in curr:
-                raise LogInceptionError(
-                    curr.get("__line__", 1),
-                    f"First entry MUST record project inception: {uuid}",
-                )
+        # Enforce sequence constraints
         for pred, curr in zip(logbook[-1::-1], logbook[-2::-1]):
             pred_stop = pred["stop"] if "stop" in pred else pred["at"]
             curr_start = curr["start"] if "start" in curr else curr["at"]
@@ -527,9 +545,9 @@ def validateMetadataForest(d):
                 try:
                     checkLogConstraints(metadata)
                 except (
+                    LogTransitionError,
                     LogSpanError,
                     LogOverlapError,
-                    LogInceptionError,
                     LogSequenceError,
                 ) as err:
                     print(ERROR_WITH_LN.format(m, err.line, err.message))
