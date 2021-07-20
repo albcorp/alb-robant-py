@@ -532,7 +532,7 @@ def validateMetadataForest(d):
                 try:
                     checkUuid(metadata)
                 except ValueError as err:
-                    print(ERROR_WITH_FILE.format(m, err))
+                    print(ERROR_WITH_LN.format(m, 1, err))
                 try:
                     if l == "ROOT":
                         checkRoot(metadata)
@@ -541,7 +541,7 @@ def validateMetadataForest(d):
                     if l == "LEAF":
                         checkLeaf(metadata)
                 except (ProjectUuidError, ProjectTodoError) as err:
-                    print(ERROR_WITH_FILE.format(m, err))
+                    print(ERROR_WITH_LN.format(m, 1, err))
                 try:
                     checkLogConstraints(metadata)
                 except (
@@ -570,9 +570,9 @@ def validateMetadataForest(d):
                     )
                 )
             else:
-                print(ERROR_WITH_FILE.format(m, err))
+                print(ERROR_WITH_LN.format(m, 1, err))
         except Exception as err:
-            print(ERROR_WITH_FILE.format(m, err))
+            print(ERROR_WITH_LN.format(m, 1, err))
 
 
 # Local Variables:
