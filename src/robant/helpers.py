@@ -359,7 +359,7 @@ def validateMetadataForest(d):
         uuid = metadata["uuid"]
         if todo != "ROOT":
             raise ProjectTodoError(
-                f"Root project MUST be in 'ROOT' todo state: {uuid}: {todo}"
+                f"Root project MUST be in 'ROOT' todo state: {todo}"
             )
 
     def checkLimb(metadata):
@@ -368,7 +368,7 @@ def validateMetadataForest(d):
         uuid = metadata["uuid"]
         if todo != "LOOK":
             raise ProjectTodoError(
-                f"Interior project MUST be in 'LOOK' todo state: {uuid}"
+                f"Interior project MUST be in 'LOOK' todo state: {todo}"
             )
 
     def checkLeaf(metadata):
@@ -377,7 +377,7 @@ def validateMetadataForest(d):
         uuid = metadata["uuid"]
         if todo == "ROOT":
             raise ProjectTodoError(
-                f"Leaf project MUST NOT be in 'ROOT' todo state: {uuid}"
+                f"Leaf project MUST NOT be in 'ROOT' todo state: {todo}"
             )
 
     def checkLogConstraints(metadata):
@@ -390,23 +390,23 @@ def validateMetadataForest(d):
         if transitions[0]["to"] != metadata["todo"]:
             raise LogTransitionError(
                 transitions[0].get("__line__", 1),
-                f"Project TODO state must agree with most recent transition: {uuid}",
+                f"Project TODO state must agree with most recent transition",
             )
         if transitions[-1] != logbook[-1] or "from" in transitions[-1]:
             raise LogTransitionError(
                 transitions[-1].get("__line__", 1),
-                f"First entry MUST record project inception: {uuid}",
+                f"First entry MUST record project inception",
             )
         for curr, succ in zip(transitions, transitions[1:]):
             if "from" not in curr:
                 raise LogTransitionError(
                     curr.get("__line__", 1),
-                    f"Every subsequent transition MUST record the 'from' state: {uuid}",
+                    f"Every subsequent transition MUST record the 'from' state",
                 )
             if curr["from"] != succ["to"]:
                 raise LogTransitionError(
                     curr.get("__line__", 1),
-                    f"The 'from' state MUST match the preceding 'to' state: {uuid}",
+                    f"The 'from' state MUST match the preceding 'to' state",
                 )
 
         # Enforce interval constraints
@@ -416,7 +416,7 @@ def validateMetadataForest(d):
             if curr_stop <= curr_start:
                 raise LogSpanError(
                     curr.get("__line__", 1),
-                    f"Entries MUST span a positive interval: {uuid}: {curr_start}, {curr_stop}",
+                    f"Entries MUST span a positive interval: {curr_start}, {curr_stop}",
                 )
             elif intervals[curr_start:curr_stop]:
                 olap = next(iter(intervals[curr_start:curr_stop]))
@@ -437,7 +437,7 @@ def validateMetadataForest(d):
             if curr_start < pred_stop:
                 raise LogSequenceError(
                     curr.get("__line__", 1),
-                    f"Entry MUST NOT start before preceding entry: {uuid}: {curr_start}",
+                    f"Entry MUST NOT start before preceding entry: {curr_start}",
                 )
 
     def checkActionConstraints(metadata, actions):
@@ -450,7 +450,7 @@ def validateMetadataForest(d):
         if (todo == "ROOT" or todo == "LOOK" or todo == "NOTE") and actions:
             raise ActionForbiddenError(
                 actions[0][0],
-                f"Projects in {todo} state MUST NOT contain actions: {uuid}",
+                f"Projects in {todo} state MUST NOT contain actions",
             )
 
         # Check absence of action states
@@ -458,7 +458,7 @@ def validateMetadataForest(d):
             if actn_todo not in ACTION_TODO_STATES:
                 raise ActionTodoError(
                     line,
-                    f"Unknown TODO state {actn_todo} in project actions: {uuid}",
+                    f"Unknown TODO state {actn_todo} in project actions",
                 )
             elif (
                 todo == "WATCH"
@@ -481,7 +481,7 @@ def validateMetadataForest(d):
             ):
                 raise ActionTodoError(
                     line,
-                    f"Projects in {todo} state MUST NOT contain {actn_todo} actions: {uuid}",
+                    f"Projects in {todo} state MUST NOT contain {actn_todo} actions",
                 )
 
         # Check existence of action states
@@ -491,15 +491,15 @@ def validateMetadataForest(d):
             and "WAIT" not in actn_todos
         ):
             raise ActionMissingError(
-                f"Projects in {todo} state MUST contain at least one HOLD or WAIT action: {uuid}"
+                f"Projects in {todo} state MUST contain at least one HOLD or WAIT action"
             )
         elif todo == "START" and "WORK" not in actn_todos:
             raise ActionMissingError(
-                f"Projects in {todo} state MUST contain exactly one WORK action: {uuid}"
+                f"Projects in {todo} state MUST contain exactly one WORK action"
             )
         elif todo == "QUASH" and "QUIT" not in actn_todos:
             raise ActionMissingError(
-                f"Projects in {todo} state MUST contain at least one QUIT action: {uuid}"
+                f"Projects in {todo} state MUST contain at least one QUIT action"
             )
 
         # Check cardinality of action states
@@ -510,7 +510,7 @@ def validateMetadataForest(d):
             if len(lines) > 1:
                 raise ActionTodoError(
                     lines[1],
-                    f"Projects in {todo} state MUST contain exactly one WORK action: {uuid}",
+                    f"Projects in {todo} state MUST contain exactly one WORK action",
                 )
 
     # Walk project hierarchy and validate projects
