@@ -386,7 +386,7 @@ def validateMetadataForest(d):
         logbook = metadata["logbook"]
 
         # Enforce transition constraints
-        transitions = [curr for curr in logbook if "at" in curr]
+        transitions = [curr for curr in logbook if "to" in curr]
         if transitions[0]["to"] != metadata["todo"]:
             raise LogTransitionError(
                 transitions[0].get("__line__", 1),
