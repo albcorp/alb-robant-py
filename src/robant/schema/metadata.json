@@ -38,10 +38,16 @@
                 "at": { "type": "string", "format": "date-time" },
                 "to": { "$ref": "#/definitions/todo-state" },
                 "from": { "$ref": "#/definitions/todo-state" },
+                "send_to": { "$ref": "#/definitions/uuid" },
+                "receive_from": { "$ref": "#/definitions/uuid" },
                 "github": { "$ref": "#/definitions/github-event" },
                 "note": { "type": "string" }
             },
-            "required": ["at", "to"]
+            "oneOf": [
+                { "required": ["at", "to"] },
+                { "required": ["at", "receive_from"] },
+                { "required": ["at", "send_to"] }
+            ]
         },
         "interval": {
             "type": "object",
