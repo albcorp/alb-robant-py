@@ -23,7 +23,7 @@ pytest = "~6.2.4"
 Sphinx = "~3.5.3"
 
 [tool.poetry.scripts]
-robant = 'robant.console:run_validation'
+robant = 'robant.console:run'
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
