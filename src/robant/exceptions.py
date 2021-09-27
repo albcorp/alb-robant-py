@@ -1,94 +1,78 @@
 #! /usr/bin/python
 
-"""Exceptions to traversel and validation of project plans and metadata
+"""Exceptions for Robant
 
 :Author: Andrew Burrow
 :Contact: albcorp@gmail.com
 :Copyright: 2021 Andrew Burrow
 
-Exceptions to report failure conditions during operations to read
-project metadata files and folder structure, and check that metadata
-conforms to the project plans schema and satisifies simple
-self-consistency constraints
+Exceptions to report failure conditions during operations to validate
+state model and project hierarchy
 
 """
 
 __docformat__ = "restructuredtext"
 
 
-class RepositoryError(Exception):
-    "Traversal attempted outside of a repository"
-    pass
+class HierarchyError(Exception):
+    "Error in directory structure in project hierarchy"
 
-
-class MissingMetadataError(Exception):
-    "Traversal encountered non-excluded folder with no project metadata"
-    pass
-
-
-class MissingPlansError(Exception):
-    "Traversal encountered non-excluded folder with no project plans"
-    pass
-
-
-class ProjectUuidError(ValueError):
-    "Non-unique project UUID"
-    pass
-
-
-class ProjectTodoError(ValueError):
-    "Project at TODO state is incorrect for location in project hierarchy"
-    pass
-
-
-class LogTransitionError(ValueError):
-    "Out of sequence TODO states in transition"
-
-    def __init__(self, line, message):
-        self.line = line
+    def __init__(self, file, message):
+        self.file = str(file)
         self.message = message
 
 
-class LogSpanError(ValueError):
-    "Negative or zero time interval in logbook"
+class ModelPartitionError(ValueError):
+    "TODO state classes intersect"
 
-    def __init__(self, line, message):
-        self.line = line
+    def __init__(self, file, message):
+        self.file = file
         self.message = message
 
 
-class LogOverlapError(ValueError):
-    "Overlapping intervals in logbooks of one or more projects"
+class ModelValidityError(ValueError):
+    "Invalid TODO state constraints"
 
-    def __init__(self, line, message):
-        self.line = line
+    def __init__(self, file, message):
+        self.file = file
         self.message = message
 
 
-class LogSequenceError(ValueError):
-    "Out of sequence entry in logbook"
+class ModelSatisfactionError(ValueError):
+    "Unsatisfiable TODO state constraints"
 
-    def __init__(self, line, message):
-        self.line = line
+    def __init__(self, file, message):
+        self.file = file
         self.message = message
 
 
-class ActionForbiddenError(ValueError):
-    "Forbidden project action in project plans"
+class ProjectIdentityError(ValueError):
+    "Project identity information is invalid"
 
-    def __init__(self, line, message):
-        self.line = line
+    def __init__(self, file, message):
+        self.file = str(file)
         self.message = message
 
 
-class ActionMissingError(ValueError):
-    "Missing project action in project plans"
-    pass
+class ProjectStateError(ValueError):
+    "Project or action TODO state is unknown"
+
+    def __init__(self, file, message):
+        self.file = str(file)
+        self.message = message
 
 
-class ActionTodoError(ValueError):
-    "Unknown or unexpected TODO state in project plans"
+class ProjectChronologyError(ValueError):
+    "Timestamp on logbook entry is invalid"
 
-    def __init__(self, line, message):
-        self.line = line
+    def __init__(self, file, message):
+        self.file = str(file)
+        self.message = message
+
+
+class ProjectSatisfactionError(ValueError):
+    "Project actions do not satisfy constraints on project state"
+
+    def __init__(self, file, message):
+        self.file = str(file)
         self.message = message

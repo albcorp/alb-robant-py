@@ -7,15 +7,15 @@
         },
         "slug": {
             "type": "string",
-            "pattern": "^[a-z][0-9a-z]*(-[0-9a-z]+)*$"
+            "pattern": "^[0-9a-z]*(-[0-9a-z]+)*$"
         },
         "todo-state": {
             "type": "string",
-            "pattern": "^(ROOT|LOOK|NOTE|WATCH|START|QUASH|CLOSE)$"
+            "pattern": "^[A-Z]+$"
         },
         "tag": {
             "type": "string",
-            "pattern": "[0-9A-Za-z]+(_[0-9A-Za-z]+)*"
+            "pattern": "^[0-9A-Za-z]+(_[0-9A-Za-z]+)*$"
         },
         "github-issue": {
             "type": "object",
@@ -38,16 +38,10 @@
                 "at": { "type": "string", "format": "date-time" },
                 "to": { "$ref": "#/definitions/todo-state" },
                 "from": { "$ref": "#/definitions/todo-state" },
-                "send_to": { "$ref": "#/definitions/uuid" },
-                "receive_from": { "$ref": "#/definitions/uuid" },
                 "github": { "$ref": "#/definitions/github-event" },
                 "note": { "type": "string" }
             },
-            "oneOf": [
-                { "required": ["at", "to"] },
-                { "required": ["at", "receive_from"] },
-                { "required": ["at", "send_to"] }
-            ]
+            "required": ["at", "to"]
         },
         "interval": {
             "type": "object",

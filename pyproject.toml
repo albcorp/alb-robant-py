@@ -16,6 +16,7 @@ PyYAML = "~5.4.1"
 icontract = "~2.5.3"
 jsonschema = "~3.2.0"
 intervaltree = "~3.1.0"
+pydantic = "~=1.8"
 
 [tool.poetry.dev-dependencies]
 black = "~20.8b1"

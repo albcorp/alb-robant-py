@@ -1,0 +1,104 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "definitions": {
+        "yaml-metadata": {
+            "oneOf": [{ "type": "integer" }, { "type": "string" }]
+        },
+        "count": {
+            "type": "integer",
+            "minimum": 0
+        },
+        "interval": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 2,
+            "items": { "type": "integer", "minimum": 0 }
+        },
+        "equivalence": {
+            "type": "string",
+            "pattern": "^[A-Z]+$"
+        },
+        "named-state": {
+            "type": "object",
+            "properties": {
+                "precis": { "type": "string" }
+            },
+            "required": ["precis"]
+        },
+        "constrained-state": {
+            "type": "object",
+            "properties": {
+                "precis": { "type": "string" },
+                "constraints": {
+                    "type": "object",
+                    "patternProperties": {
+                        "^[A-Z]+$": {
+                            "oneOf": [
+                                { "$ref": "#/definitions/count" },
+                                { "$ref": "#/definitions/interval" },
+                                { "$ref": "#/definitions/equivalence" }
+                            ]
+                        },
+                        "^__.*__$": { "$ref": "#/definitions/yaml-metadata" }
+                    },
+                    "additionalProperties": false
+                }
+            },
+            "required": ["precis", "constraints"]
+        }
+    },
+    "type": "object",
+    "properties": {
+        "action_states": {
+            "type": "object",
+            "patternProperties": {
+                "^[A-Z]+$": { "$ref": "#/definitions/named-state" },
+                "^__.*__$": { "$ref": "#/definitions/yaml-metadata" }
+            },
+            "additionalProperties": false,
+            "minProperties": 1
+        },
+        "limb_states": {
+            "type": "object",
+            "patternProperties": {
+                "^[A-Z]+$": { "$ref": "#/definitions/named-state" },
+                "^__.*__$": { "$ref": "#/definitions/yaml-metadata" }
+            },
+            "additionalProperties": false,
+            "minProperties": 1
+        },
+        "empty_states": {
+            "type": "object",
+            "patternProperties": {
+                "^[A-Z]+$": { "$ref": "#/definitions/named-state" },
+                "^__.*__$": { "$ref": "#/definitions/yaml-metadata" }
+            },
+            "additionalProperties": false
+        },
+        "open_states": {
+            "type": "object",
+            "patternProperties": {
+                "^[A-Z]+$": { "$ref": "#/definitions/constrained-state" },
+                "^__.*__$": { "$ref": "#/definitions/yaml-metadata" }
+            },
+            "additionalProperties": false,
+            "minProperties": 1
+        },
+        "shut_states": {
+            "type": "object",
+            "patternProperties": {
+                "^[A-Z]+$": { "$ref": "#/definitions/constrained-state" },
+                "^__.*__$": { "$ref": "#/definitions/yaml-metadata" }
+            },
+            "additionalProperties": false,
+            "minProperties": 1
+        }
+    },
+    "required": [
+        "action_states",
+        "limb_states",
+        "empty_states",
+        "open_states",
+        "shut_states"
+    ]
+}
