@@ -11,7 +11,7 @@ authors = ["Andrew Burrow <albcorp@gmail.com>"]
 license = "GPL-3.0-only"
 
 [tool.poetry.dependencies]
-python = "~3.9"
+python = "~3.10"
 PyYAML = "~5.4.1"
 icontract = "~2.5.3"
 jsonschema = "~3.2.0"
