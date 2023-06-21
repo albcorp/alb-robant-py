@@ -5,7 +5,7 @@ Robant
 :Precis: Maintain project notes and participate in external work flows
 :Authors: Andrew Burrow
 :Contact: albcorp@gmail.com
-:Copyright: 2021 Andrew Lincoln Burrow
+:Copyright: 2021-2023 Andrew Lincoln Burrow
 
 ``Robant`` is an early prototype of a tool to maintain project plans.
 The objective is to enable text to be the simple and efficient means to
@@ -34,9 +34,7 @@ available on your workstation.
 
 .. code:: bash
 
-   python -m pip install --user pipx
-   python -m pipx ensurepath
-   pipx install poetry
+   sudo dnf install poetry
 
 Build the prototype using the ``install`` subcommand.
 
@@ -44,11 +42,11 @@ Build the prototype using the ``install`` subcommand.
 
    poetry install
 
-Run the prototype using the ``run`` subcommand.
+Get help on the prototype using the ``run`` subcommand.
 
 .. code:: bash
 
-   poetry run robant -P ~/Documents
+   poetry run robant -h
 
 .. _Poetry:
    https://python-poetry.org/
