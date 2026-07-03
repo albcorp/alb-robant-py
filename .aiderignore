@@ -1,0 +1,10 @@
+#
+# ~/.aiderignore
+#
+#   - Repository specific list of patterns that aider(1) should ignore, beyond
+#     files already ignore by git(1)
+#
+
+#
+# Ignore Poetry files
+/.poetry.lock
